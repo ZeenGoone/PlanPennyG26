@@ -1,7 +1,10 @@
 package gruppe26.com.g26planpenny;
 
+import com.example.calendarquickstart.R;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.ActivityRecognition;
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
 import com.google.api.client.googleapis.extensions.android.gms.auth.GooglePlayServicesAvailabilityIOException;
@@ -23,6 +26,7 @@ import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -30,6 +34,8 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -39,10 +45,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements View.OnClickListener,
+        GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
     GoogleAccountCredential mCredential;
+    GoogleApiClient googleApiClient;
     private TextView mOutputText;
     ProgressDialog mProgress;
+
+    TextView tv;
 
     static final int REQUEST_ACCOUNT_PICKER = 1000;
     static final int REQUEST_AUTHORIZATION = 1001;
@@ -81,12 +91,20 @@ public class MainActivity extends Activity {
 
         setContentView(activityLayout);
 
+        googleApiClient = new GoogleApiClient.Builder(this)
+            .addConnectionCallbacks(this)
+            .addOnConnectionFailedListener(this)
+            .addApi(ActivityRecognition.API)
+            .build();
+        googleApiClient.connect();
+
         // Initialize credentials and service object.
         SharedPreferences settings = getPreferences(Context.MODE_PRIVATE);
         mCredential = GoogleAccountCredential.usingOAuth2(
                 getApplicationContext(), Arrays.asList(SCOPES))
                 .setBackOff(new ExponentialBackOff())
                 .setSelectedAccountName(settings.getString(PREF_ACCOUNT_NAME, null));
+        setContentView(R.layout.activity_main);
     }
 
 
@@ -221,6 +239,52 @@ public class MainActivity extends Activity {
                 MainActivity.this,
                 REQUEST_GOOGLE_PLAY_SERVICES);
         dialog.show();
+    }
+
+    @Override
+    public void onConnected(Bundle bundle) {
+        log("onConnected( " + bundle);
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+        log("onConnectionSuspended()");
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+        log("onConnectionFailed( " + connectionResult);
+
+  /*
+   * Google Play services can resolve some errors it detects.
+   * If the error has a resolution, try sending an Intent to
+   * start a Google Play services activity that can resolve
+   * error.
+   */
+        if (connectionResult.hasResolution()) {
+            try {
+                connectionResult.startResolutionForResult(this, 9000);
+            } catch (IntentSender.SendIntentException e) {
+                Log.getStackTraceString(e);
+            }
+        } else {
+            Dialog errorDialog = GooglePlayServicesUtil.getErrorDialog(connectionResult.getErrorCode(), this, 9000);
+
+            // If Google Play services can provide an error dialog
+            if (errorDialog != null) {
+                errorDialog.show();;
+            }
+        }
+    }
+
+    private void log(String s) {
+       Log.d("", s);
+       tv.append(s + "\n");
+    }
+
+    @Override
+    public void onClick(View v) {
+
     }
 
     /**
